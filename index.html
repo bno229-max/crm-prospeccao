@@ -1,0 +1,1352 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CRM Prospecção | Assinaturas</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+
+    <style>
+        /* ================= VARIABLES ================= */
+        :root {
+            --bg-base: #f1f5f9; 
+            --bg-surface: #ffffff; 
+            --bg-surface-hover: #f8fafc;
+            --bg-surface-light: #e2e8f0;
+            --border-color: #cbd5e1;
+            --border-highlight: #94a3b8;
+            --text-primary: #0f172a; 
+            --text-secondary: #475569; 
+            --text-muted: #64748b;
+            --header-bg: rgba(255, 255, 255, 0.85);
+            --kanban-col-bg: rgba(241, 245, 249, 0.6);
+            
+            --accent-primary: #3b82f6;
+            --accent-hover: #2563eb;
+            --accent-glow: rgba(59, 130, 246, 0.2);
+            --success: #10b981;
+            --success-bg: rgba(16, 185, 129, 0.1);
+            --warning: #f59e0b;
+            --warning-bg: rgba(245, 158, 11, 0.1);
+            --danger: #ef4444;
+            --danger-bg: rgba(239, 68, 68, 0.05);
+            --neutral: #8b5cf6;
+            --whatsapp: #25D366;
+            
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.08);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            --shadow-glow: 0 0 15px var(--accent-glow);
+            --radius-sm: 6px;
+            --radius-md: 10px;
+            --radius-lg: 16px;
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            --font-main: 'Inter', sans-serif;
+        }
+
+        body.dark-mode {
+            --bg-base: #0f172a; 
+            --bg-surface: #1e293b; 
+            --bg-surface-hover: #334155;
+            --bg-surface-light: #475569;
+            --border-color: #334155;
+            --border-highlight: #64748b;
+            --text-primary: #f8fafc; 
+            --text-secondary: #cbd5e1; 
+            --text-muted: #94a3b8;
+            --header-bg: rgba(30, 41, 59, 0.85);
+            --kanban-col-bg: rgba(15, 23, 42, 0.4);
+            --danger-bg: rgba(239, 68, 68, 0.15);
+            --warning-bg: rgba(245, 158, 11, 0.15);
+        }
+
+        /* ================= RESET & BASE ================= */
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: var(--font-main); }
+        body { background-color: var(--bg-base); color: var(--text-primary); height: 100vh; overflow: hidden; display: flex; transition: background-color 0.3s, color 0.3s; }
+
+        ::-webkit-scrollbar { width: 8px; height: 12px; } 
+        ::-webkit-scrollbar-track { background: var(--bg-surface-light); border-radius: 10px; } 
+        ::-webkit-scrollbar-thumb { background: var(--border-highlight); border-radius: 10px; border: 2px solid var(--bg-surface-light); } 
+
+        /* ================= SIDEBAR ================= */
+        .sidebar { width: 260px; background-color: var(--bg-surface); border-right: 1px solid var(--border-color); display: flex; flex-direction: column; padding: 24px 16px; transition: width 0.3s ease, background-color 0.3s, border-color 0.3s; z-index: 100; position: relative; flex-shrink: 0; }
+        .sidebar.collapsed { width: 80px; padding: 24px 12px; }
+        .main-content { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
+
+        .logo-container { display: flex; align-items: center; gap: 12px; margin-bottom: 40px; padding: 0 8px; white-space: nowrap; }
+        .sidebar.collapsed .logo-container { justify-content: center; padding: 0; }
+        
+        .logo-img { width: 32px; height: 32px; object-fit: contain; border-radius: var(--radius-sm); filter: drop-shadow(0 0 8px var(--accent-glow)); cursor: pointer; transition: var(--transition); }
+        .logo-img:hover { transform: scale(1.05); filter: drop-shadow(0 0 12px var(--accent-primary)); }
+        
+        .logo-text { font-size: 1.2rem; font-weight: 700; letter-spacing: -0.5px; outline: none; border-bottom: 1px dashed transparent; transition: var(--transition); color: var(--text-primary); }
+        .logo-text:focus, .logo-text:hover { border-bottom-color: var(--border-highlight); }
+        .sidebar.collapsed .logo-text, .sidebar.collapsed .nav-text { display: none; }
+
+        .btn-collapse { background: var(--bg-surface-light); border: 1px solid var(--border-color); color: var(--text-secondary); width: 24px; height: 24px; border-radius: 50%; position: absolute; right: -12px; top: 28px; display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 10; transition: var(--transition); }
+        .btn-collapse:hover { color: var(--accent-primary); border-color: var(--accent-primary); box-shadow: var(--shadow-glow); }
+
+        .nav-menu { list-style: none; display: flex; flex-direction: column; gap: 8px; margin-bottom: auto; }
+        .nav-item { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: var(--radius-md); color: var(--text-secondary); text-decoration: none; transition: var(--transition); cursor: pointer; font-size: 0.95rem; white-space: nowrap; }
+        .nav-item i { font-size: 1.2rem; min-width: 20px; text-align: center; }
+        .nav-item:hover { background-color: var(--bg-surface-hover); color: var(--text-primary); }
+        .nav-item.active { background-color: var(--accent-glow); color: var(--accent-primary); font-weight: 600; border: 1px solid rgba(59, 130, 246, 0.3); }
+        .sidebar.collapsed .nav-item { justify-content: center; padding: 10px 0; }
+
+        /* ================= HEADER & FILTROS ================= */
+        .header { padding: 20px 32px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); background-color: var(--header-bg); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); gap: 20px; transition: background-color 0.3s, border-color 0.3s; z-index: 10; }
+        .search-bar { display: flex; align-items: center; background-color: var(--bg-base); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 8px 16px; width: 300px; transition: var(--transition); }
+        .search-bar:focus-within { border-color: var(--accent-primary); background-color: var(--bg-surface); box-shadow: 0 0 0 3px var(--accent-glow); }
+        .search-bar input { background: transparent; border: none; outline: none; color: var(--text-primary); width: 100%; margin-left: 10px; font-size: 0.95rem; }
+
+        .header-actions { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+        
+        .btn-theme { background: transparent; border: none; color: var(--text-muted); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; transition: var(--transition); width: 34px; height: 34px; border-radius: 50%; }
+        .btn-theme:hover { color: var(--accent-primary); background: var(--bg-surface-hover); }
+
+        .date-filter { display: flex; align-items: center; background-color: var(--bg-base); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 6px 12px; font-size: 0.85rem; color: var(--text-secondary); gap: 8px; transition: var(--transition); }
+        .date-filter:hover, .date-filter:focus-within { border-color: var(--accent-primary); }
+        .date-filter input[type="date"] { background: transparent; border: none; outline: none; color: var(--text-primary); font-size: 0.85rem; cursor: pointer; color-scheme: light dark; }
+        .btn-clear-filter { background: transparent; border: none; color: var(--text-muted); cursor: pointer; display: flex; align-items: center; transition: var(--transition); border-left: 1px solid var(--border-color); padding-left: 6px; }
+        .btn-clear-filter:hover { color: var(--danger); }
+
+        .btn-primary { background: linear-gradient(135deg, var(--accent-primary), #60a5fa); color: white; border: none; padding: 10px 20px; border-radius: var(--radius-md); font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: var(--transition); box-shadow: 0 4px 12px var(--accent-glow); }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 16px var(--accent-glow); filter: brightness(1.1); }
+        
+        .btn-excel { background: #10b981; color: white; border: none; padding: 10px 20px; border-radius: var(--radius-md); font-weight: 600; cursor: pointer; display: none; align-items: center; gap: 8px; transition: var(--transition); box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2); }
+        .btn-excel:hover { transform: translateY(-2px); filter: brightness(1.1); }
+
+        .btn-pdf { background: #ef4444; color: white; border: none; padding: 10px 20px; border-radius: var(--radius-md); font-weight: 600; cursor: pointer; display: none; align-items: center; gap: 8px; transition: var(--transition); box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2); }
+        .btn-pdf:hover { transform: translateY(-2px); filter: brightness(1.1); }
+
+        /* ================= VIEWS ================= */
+        .view-section { display: none; flex-direction: column; flex: 1; overflow: hidden; animation: fadeIn 0.3s ease; }
+        .view-section.active { display: flex; }
+
+        /* ================= DASHBOARD METRICS & CHARTS ================= */
+        .dashboard-metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; padding: 24px 32px 16px 32px; flex-shrink: 0; }
+        .metric-card { background-color: var(--bg-surface); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 20px; display: flex; flex-direction: column; gap: 8px; position: relative; overflow: hidden; box-shadow: var(--shadow-sm); transition: var(--transition); }
+        .metric-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); border-color: var(--accent-primary); }
+        .metric-card::before { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 3px; background: linear-gradient(90deg, var(--accent-primary), transparent); opacity: 0; transition: var(--transition); }
+        .metric-card:hover::before { opacity: 1; }
+        .metric-title { color: var(--text-secondary); font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; z-index: 2; line-height: 1.2; }
+        .metric-value { font-size: 1.6rem; font-weight: 700; color: var(--text-primary); z-index: 2; }
+        .metric-icon { position: absolute; right: -10px; bottom: -10px; font-size: 4.5rem; opacity: 0.05; z-index: 1; color: var(--text-primary); }
+        
+        .charts-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; padding: 0 32px 24px 32px; flex: 1; }
+        .chart-box { background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 20px; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; }
+        .chart-box h3 { font-size: 1rem; color: var(--text-secondary); margin-bottom: 16px; flex-shrink: 0; }
+        .chart-canvas-container { position: relative; width: 100%; flex: 1; min-height: 250px; }
+
+        /* ================= FILTER CHIPS (NICHOS) ================= */
+        .kanban-filters { padding: 0 32px 12px 32px; display: flex; gap: 10px; overflow-x: auto; align-items: center; flex-shrink: 0; }
+        .kanban-filters::-webkit-scrollbar { height: 6px; }
+        .filter-chip { background: var(--bg-surface); border: 1px solid var(--border-color); padding: 6px 14px; border-radius: 20px; font-size: 0.85rem; font-weight: 500; cursor: pointer; transition: var(--transition); color: var(--text-secondary); white-space: nowrap; box-shadow: var(--shadow-sm); display: flex; align-items: center; gap: 6px; }
+        .filter-chip:hover { border-color: var(--border-highlight); transform: translateY(-1px); }
+        .filter-chip.active { background: var(--accent-glow); color: var(--accent-primary); border-color: var(--accent-primary); box-shadow: 0 0 10px rgba(59, 130, 246, 0.15); }
+
+        /* ================= KANBAN BOARD ================= */
+        .board-wrapper { flex: 1; padding: 0 32px 16px 32px; overflow-x: auto; overflow-y: hidden; }
+        .kanban-board { display: flex; gap: 16px; height: 100%; align-items: flex-start; padding-bottom: 12px; }
+        .kanban-column { min-width: 280px; max-width: 280px; background-color: var(--kanban-col-bg); border: 1px dashed var(--border-color); border-radius: var(--radius-lg); height: 100%; display: flex; flex-direction: column; transition: background-color 0.3s, border-color 0.3s; }
+        .column-header { padding: 14px 16px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(0,0,0,0.05); }
+        .column-title { font-size: 0.9rem; font-weight: 600; color: var(--text-primary); display: flex; align-items: center; gap: 8px; }
+        .column-counter { background-color: var(--bg-surface); color: var(--text-secondary); font-size: 0.75rem; padding: 2px 8px; border-radius: 20px; font-weight: 600; border: 1px solid var(--border-color); }
+        .column-body { padding: 12px; flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
+        .column-body.drag-over { background-color: var(--accent-glow); border-radius: 0 0 var(--radius-lg) var(--radius-lg); }
+
+        /* ================= KANBAN CARDS & ANIMATIONS ================= */
+        @keyframes pulse-danger { 0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); border-color: var(--danger); } 70% { box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); border-color: var(--danger); } 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); border-color: var(--danger); } }
+        @keyframes pulse-warning { 0% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.4); border-color: var(--warning); } 70% { box-shadow: 0 0 0 6px rgba(245, 158, 11, 0); border-color: var(--warning); } 100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); border-color: var(--warning); } }
+
+        .kanban-card { background-color: var(--bg-surface); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 14px; cursor: grab; transition: var(--transition); position: relative; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; gap: 8px;}
+        .kanban-card:hover { border-color: var(--accent-primary); box-shadow: var(--shadow-md); transform: translateY(-2px); }
+        .kanban-card:active { cursor: grabbing; }
+        .kanban-card.dragging { opacity: 0.5; transform: scale(0.95); }
+        .kanban-card.card-overdue { animation: pulse-danger 2.5s infinite; background-color: var(--danger-bg); border-color: var(--danger); }
+        .kanban-card.card-today { animation: pulse-warning 2.5s infinite; background-color: var(--warning-bg); border-color: var(--warning); }
+        
+        .card-header { display: flex; justify-content: space-between; align-items: flex-start; }
+        .client-info { display: flex; flex-direction: column; max-width: 75%; }
+        .client-name { font-weight: 600; font-size: 0.95rem; color: var(--text-primary); margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;}
+        .client-business { font-size: 0.75rem; color: var(--text-secondary); display: flex; align-items: center; gap: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;}
+        
+        .card-actions { display: flex; gap: 4px; opacity: 0; transition: var(--transition); position: absolute; right: 8px; top: 10px; background: var(--bg-surface); border-radius: 6px; padding: 2px; box-shadow: var(--shadow-sm); z-index: 5;}
+        .kanban-card:hover .card-actions { opacity: 1; }
+        
+        .card-btn { background: var(--bg-base); border: 1px solid var(--border-color); color: var(--text-muted); cursor: pointer; padding: 4px 6px; border-radius: 4px; font-size: 1rem; display: flex; align-items: center; justify-content: center; transition: var(--transition); }
+        .card-btn:hover { color: var(--accent-primary); border-color: var(--accent-primary); background: var(--accent-glow); }
+        .card-btn.whatsapp:hover { color: var(--whatsapp); border-color: var(--whatsapp); background: rgba(37, 211, 102, 0.1); }
+        .card-btn.notes { color: var(--text-secondary); }
+        .card-btn.notes:hover { color: var(--neutral); border-color: var(--neutral); background: rgba(139, 92, 246, 0.1); }
+        .card-btn.delete:hover { background: var(--danger-bg); color: var(--danger); border-color: var(--danger); }
+        .card-btn.renew { background: var(--success-bg); color: var(--success); border-color: var(--success); }
+        .card-btn.renew:hover { background: var(--success); color: white; }
+
+        .card-tags { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
+        .tag { font-size: 0.7rem; padding: 3px 8px; border-radius: 12px; font-weight: 600; display: flex; align-items: center; gap: 4px; }
+        .tag-niche { background-color: var(--bg-surface-light); color: var(--text-secondary); border: 1px solid var(--border-color); }
+        
+        .card-values { display: flex; flex-direction: column; gap: 4px; margin-top: 4px; }
+        .card-val-row { display: flex; justify-content: space-between; font-size: 0.8rem; }
+        .val-label { color: var(--text-muted); }
+        .val-amount { font-weight: 600; color: var(--success); }
+        
+        .card-footer { display: flex; flex-direction: column; gap: 6px; font-size: 0.7rem; color: var(--text-muted); border-top: 1px solid var(--border-color); padding-top: 10px; margin-top: 4px; }
+        .date-infos { display: flex; justify-content: space-between; width: 100%; }
+        .next-action-badge { display: flex; align-items: center; gap: 4px; padding: 4px 6px; border-radius: 4px; background: var(--bg-surface-light); font-weight: 600; width: fit-content; }
+        .next-action-badge.today { background: var(--warning-bg); color: var(--warning); border: 1px solid rgba(245, 158, 11, 0.3); }
+
+        /* ================= TABLE VIEW ================= */
+        .table-wrapper { flex: 1; padding: 24px 32px; overflow-y: auto; }
+        .data-table { width: 100%; border-collapse: collapse; background-color: var(--bg-surface); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-sm); border: 1px solid var(--border-color); transition: background-color 0.3s, border-color 0.3s; }
+        .data-table thead { background-color: var(--bg-base); border-bottom: 1px solid var(--border-color); }
+        .data-table th { padding: 16px; text-align: left; font-size: 0.8rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; }
+        .data-table td { padding: 16px; border-bottom: 1px solid var(--border-color); color: var(--text-primary); font-size: 0.9rem; vertical-align: middle; }
+        .data-table tbody tr:hover { background-color: var(--bg-surface-hover); }
+        .status-badge { padding: 4px 10px; background: var(--bg-base); border: 1px solid var(--border-color); border-radius: 20px; font-size: 0.75rem; font-weight: 600; color: var(--text-secondary); display: inline-flex; align-items: center; gap: 4px; }
+        .table-actions-cell { display: flex; gap: 8px; justify-content: center; }
+
+        /* ================= NICHES GRID ================= */
+        .niches-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 20px; padding: 24px 32px; overflow-y: auto; }
+        .niche-card { background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 24px; cursor: pointer; transition: var(--transition); box-shadow: var(--shadow-sm); display: flex; flex-direction: column; align-items: center; text-align: center; gap: 12px; }
+        .niche-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-md); border-color: var(--accent-primary); }
+        .niche-icon { font-size: 2.5rem; padding: 16px; background: var(--bg-base); border-radius: 50%; border: 1px solid var(--border-color); }
+        .niche-title { font-weight: 600; font-size: 1.1rem; color: var(--text-primary); }
+        .niche-count { background: var(--bg-base); color: var(--text-secondary); padding: 4px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: 500; border: 1px solid var(--border-color); }
+
+        /* ================= MODALS (CORRIGIDOS) ================= */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-color: rgba(15, 23, 42, 0.7); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); display: flex; justify-content: center; align-items: center; z-index: 1000; opacity: 0; pointer-events: none; transition: var(--transition); padding: 20px; }
+        .modal-overlay.active { opacity: 1; pointer-events: auto; }
+        
+        /* Box do Modal */
+        .modal-content { background-color: var(--bg-surface); border: 1px solid var(--border-color); border-radius: var(--radius-lg); width: 100%; max-width: 650px; box-shadow: var(--shadow-lg), 0 0 20px var(--accent-glow); transform: translateY(20px) scale(0.95); transition: var(--transition); color: var(--text-primary); display: flex; flex-direction: column; max-height: 100%; overflow: hidden; }
+        .modal-content.wide { max-width: 800px; }
+        .modal-overlay.active .modal-content { transform: translateY(0) scale(1); }
+        
+        /* Flexbox do Form para garantir o scroll interno */
+        .modal-content form { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; overflow: hidden; }
+        
+        .modal-header { padding: 20px 24px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.02); border-radius: var(--radius-lg) var(--radius-lg) 0 0; flex-shrink: 0; }
+        .modal-title { font-size: 1.2rem; font-weight: 600; color: var(--text-primary); display: flex; align-items: center; gap: 8px; }
+        .close-modal { background: transparent; border: none; color: var(--text-secondary); cursor: pointer; font-size: 1.5rem; transition: var(--transition); }
+        .close-modal:hover { color: var(--danger); transform: rotate(90deg); }
+        
+        /* Corpo Rola, Topo e Base Ficam Fixos */
+        .modal-body { padding: 20px 24px; overflow-y: auto; flex: 1 1 auto; min-height: 0; }
+        
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 16px; }
+        .form-group { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; }
+        .form-group.full { grid-column: 1 / -1; }
+        .form-label { font-size: 0.85rem; font-weight: 600; color: var(--text-secondary); }
+        .form-input, .form-select { background-color: var(--bg-surface); border: 1px solid var(--border-color); color: var(--text-primary); padding: 8px 12px; border-radius: var(--radius-sm); font-size: 0.9rem; transition: var(--transition); outline: none; color-scheme: light dark; }
+        .form-input:focus, .form-select:focus { border-color: var(--accent-primary); box-shadow: 0 0 0 3px var(--accent-glow); }
+        
+        .modal-footer { padding: 16px 24px; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 12px; background-color: var(--bg-base); border-radius: 0 0 var(--radius-lg) var(--radius-lg); flex-shrink: 0; }
+        .btn-secondary { background: var(--bg-surface); color: var(--text-primary); border: 1px solid var(--border-color); padding: 10px 20px; border-radius: var(--radius-md); font-weight: 600; cursor: pointer; transition: var(--transition); }
+        .btn-secondary:hover { background: var(--bg-surface-hover); border-color: var(--border-highlight); }
+
+        /* --- NOTES STYLES --- */
+        .note-item { background: var(--bg-base); border: 1px solid var(--border-color); padding: 14px; border-radius: var(--radius-md); border-left: 4px solid var(--neutral); font-size: 0.9rem; margin-bottom: 10px; transition: var(--transition); }
+        .note-item:hover { box-shadow: var(--shadow-sm); border-color: var(--border-highlight); border-left-color: var(--neutral); }
+        .note-date { font-size: 0.75rem; color: var(--text-muted); margin-bottom: 6px; display: flex; align-items: center; gap: 4px; font-weight: 600;}
+        .note-text { color: var(--text-primary); line-height: 1.4; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: var(--text-muted); gap: 16px; padding: 40px; text-align: center; }
+        .empty-state i { font-size: 3rem; color: var(--border-highlight); }
+    </style>
+</head>
+<body>
+
+    <input type="file" id="logoUpload" style="display:none" accept="image/*" onchange="handleLogoUpload(event)">
+
+    <aside class="sidebar" id="sidebar">
+        <div class="btn-collapse" onclick="toggleSidebar()">
+            <i class="ph ph-caret-left" id="toggleIcon"></i>
+        </div>
+        <div class="logo-container">
+            <img src="logo.png" id="sidebarLogo" alt="Logo" class="logo-img" onclick="document.getElementById('logoUpload').click()" title="Clique para alterar a logo">
+            <div class="logo-text" id="sidebarTitle" contenteditable="true" onblur="saveSystemTitle()" title="Clique para editar">CRM Prospecção</div>
+        </div>
+        
+        <ul class="nav-menu">
+            <li><a class="nav-item active" id="nav-pipeline" onclick="switchView('pipeline')"><i class="ph ph-kanban"></i> <span class="nav-text">Pipeline</span></a></li>
+            <li><a class="nav-item" id="nav-clients" onclick="switchView('clients')"><i class="ph ph-users"></i> <span class="nav-text">Clientes</span></a></li>
+            <li><a class="nav-item" id="nav-niches" onclick="switchView('niches')"><i class="ph ph-target"></i> <span class="nav-text">Nichos</span></a></li>
+            <li><a class="nav-item" id="nav-dashboard" onclick="switchView('dashboard')"><i class="ph ph-chart-line-up"></i> <span class="nav-text">Dashboard</span></a></li>
+        </ul>
+    </aside>
+
+    <main class="main-content">
+        <header class="header">
+            <div class="search-bar">
+                <i class="ph ph-magnifying-glass" style="color: var(--text-secondary)"></i>
+                <input type="text" id="searchInput" placeholder="Buscar contatos, negócio..." oninput="refreshCurrentView()">
+            </div>
+            
+            <div class="header-actions">
+                <button id="themeToggleBtn" class="btn-theme" onclick="toggleTheme()" title="Alternar Modo Escuro">
+                    <i class="ph ph-moon"></i>
+                </button>
+
+                <div class="date-filter" title="Filtro Global de Data">
+                    <i class="ph ph-calendar-blank"></i>
+                    <input type="date" id="filterStart" onchange="refreshCurrentView()">
+                    <span>até</span>
+                    <input type="date" id="filterEnd" onchange="refreshCurrentView()">
+                    <button class="btn-clear-filter" onclick="clearDateFilter()"><i class="ph ph-x"></i></button>
+                </div>
+                
+                <button class="btn-pdf" id="btn-export-pdf" onclick="exportDashboardPDF()">
+                    <i class="ph-bold ph-file-pdf"></i> Baixar PDF
+                </button>
+
+                <button class="btn-excel" id="btn-export-excel" onclick="exportToExcel()">
+                    <i class="ph-bold ph-file-csv"></i> Exportar Excel
+                </button>
+                
+                <button class="btn-primary" id="btn-new-contact" onclick="openModal()">
+                    <i class="ph-bold ph-plus"></i> Novo Cliente
+                </button>
+            </div>
+        </header>
+
+        <div id="view-pipeline" class="view-section active">
+            <div class="dashboard-metrics">
+                <div class="metric-card">
+                    <div class="metric-title">Valor Assinaturas R$</div>
+                    <div class="metric-value" style="color: var(--success);" id="kpi-valor-pago">R$ 0,00</div>
+                    <i class="ph-fill ph-money metric-icon" style="color: var(--success);"></i>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-title">Taxa de Conversão</div>
+                    <div class="metric-value" style="color: var(--accent-primary);" id="kpi-conversao">0%</div>
+                    <i class="ph-fill ph-trend-up metric-icon" style="color: var(--accent-primary);"></i>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-title">Assinantes Ativos</div>
+                    <div class="metric-value" id="kpi-ativos">0</div>
+                    <i class="ph-fill ph-users-three metric-icon"></i>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-title">Testando (10 Dias)</div>
+                    <div class="metric-value" style="color: var(--warning);" id="kpi-testando">0</div>
+                    <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 4px; font-weight: 500;" id="kpi-previsao">Previsão: R$ 0,00</div>
+                    <i class="ph-fill ph-hourglass metric-icon" style="color: var(--warning);"></i>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-title">Renovação Acumulada</div>
+                    <div class="metric-value" style="color: var(--neutral);" id="kpi-renovacao">R$ 0,00</div>
+                    <i class="ph-fill ph-arrows-clockwise metric-icon" style="color: var(--neutral);"></i>
+                </div>
+            </div>
+
+            <div class="kanban-filters" id="kanbanFilters"></div>
+
+            <div class="board-wrapper">
+                <div class="kanban-board" id="kanbanBoard"></div>
+            </div>
+        </div>
+
+        <div id="view-clients" class="view-section">
+            <div class="table-wrapper">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Contato / Empresa</th>
+                            <th>Negócio</th>
+                            <th>Nicho</th>
+                            <th>Telefone</th>
+                            <th>Status Atual</th>
+                            <th style="width: 100px; text-align: center;">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="clientsTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="view-niches" class="view-section">
+            <div class="niches-grid" id="nichesGrid"></div>
+        </div>
+
+        <div id="view-dashboard" class="view-section">
+            <div class="dashboard-metrics">
+                <div class="metric-card">
+                    <div class="metric-title">MRR (Receita Recorrente)</div>
+                    <div class="metric-value" style="color: var(--success);" id="dash-mrr">R$ 0,00</div>
+                    <i class="ph-fill ph-chart-line-up metric-icon" style="color: var(--success);"></i>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-title">LTV Médio (Por Cliente)</div>
+                    <div class="metric-value" style="color: var(--accent-primary);" id="dash-ltv">R$ 0,00</div>
+                    <i class="ph-fill ph-diamond metric-icon" style="color: var(--accent-primary);"></i>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-title">Taxa de Churn (Cancelamento)</div>
+                    <div class="metric-value" style="color: var(--danger);" id="dash-churn">0%</div>
+                    <i class="ph-fill ph-user-minus metric-icon" style="color: var(--danger);"></i>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-title">Total de Ciclos de Renovação</div>
+                    <div class="metric-value" style="color: var(--neutral);" id="dash-ciclos">0</div>
+                    <i class="ph-fill ph-arrows-clockwise metric-icon" style="color: var(--neutral);"></i>
+                </div>
+            </div>
+
+            <div class="charts-grid">
+                <div class="chart-box">
+                    <h3>Funil de Prospecção e Retenção</h3>
+                    <div class="chart-canvas-container">
+                        <canvas id="funnelChart"></canvas>
+                    </div>
+                </div>
+                <div class="chart-box">
+                    <h3>Receita LTV por Nicho</h3>
+                    <div class="chart-canvas-container">
+                        <canvas id="revenueNicheChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div class="modal-overlay" id="clientModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title"><i class="ph-fill ph-user-plus"></i> <span id="modalTitleText">Cadastrar Cliente</span></div>
+                <button type="button" class="close-modal" onclick="closeModal()"><i class="ph ph-x"></i></button>
+            </div>
+            <form id="clientForm" onsubmit="handleFormSubmit(event)">
+                <div class="modal-body">
+                    <input type="hidden" id="clientId">
+                    <div class="form-grid">
+                        <div class="form-group full">
+                            <label class="form-label">Nome do Contato / Responsável</label>
+                            <input type="text" class="form-input" id="clientName" required placeholder="Ex: João Silva">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">CPF / CNPJ</label>
+                            <input type="text" class="form-input" id="clientCpf" placeholder="000.000.000-00">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Telefone / WhatsApp</label>
+                            <input type="text" class="form-input" id="clientPhone" placeholder="(00) 00000-0000">
+                        </div>
+                        <div class="form-group full">
+                            <label class="form-label">E-mail</label>
+                            <input type="email" class="form-input" id="clientEmail" placeholder="contato@empresa.com">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Negócio (Empresa/Produto)</label>
+                            <input type="text" class="form-input" id="clientBusiness" required placeholder="Ex: SaaS Financeiro">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Nicho de Atuação</label>
+                            <input type="text" class="form-input" id="clientNiche" required placeholder="Ex: Contabilidade">
+                        </div>
+                        
+                        <div class="form-group full" style="background: var(--bg-surface-light); padding: 12px; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
+                            <label class="form-label" style="display:flex; align-items:center; gap:6px;"><i class="ph-fill ph-bell"></i> Agendar Próximo Contato (Alarme)</label>
+                            <input type="date" class="form-input" id="clientNextContact" style="width: 50%;">
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Data de Entrada</label>
+                            <input type="date" class="form-input" id="clientDate" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Status Inicial</label>
+                            <select class="form-select" id="clientStatus" required></select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Valor da Assinatura (R$)</label>
+                            <input type="number" step="0.01" class="form-input" id="clientValue" placeholder="Ex: 47.90">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Valor de Renovação Previsto (R$)</label>
+                            <input type="number" step="0.01" class="form-input" id="clientRenewal" placeholder="Ex: 47.90">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-secondary" onclick="closeModal()">Cancelar</button>
+                    <button type="submit" class="btn-primary">Salvar Cliente</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="notesModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title"><i class="ph-fill ph-notebook" style="color: var(--neutral);"></i> Histórico de Follow-up</div>
+                <button type="button" class="close-modal" onclick="closeNotesModal()"><i class="ph ph-x"></i></button>
+            </div>
+            <div class="modal-body">
+                <div style="display:flex; gap: 8px; margin-bottom: 20px; align-items: flex-end;">
+                    <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                        <label class="form-label">Nova Anotação</label>
+                        <input type="text" id="newNoteInput" class="form-input" placeholder="Ex: Reunião realizada, pediu proposta...">
+                    </div>
+                    <button class="btn-primary" onclick="saveNote()" style="background: var(--neutral); box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);">
+                        <i class="ph-bold ph-plus"></i> Adicionar
+                    </button>
+                </div>
+                <div id="notesList"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-secondary" onclick="closeNotesModal()">Fechar Histórico</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="nicheDetailsModal">
+        <div class="modal-content wide">
+            <div class="modal-header">
+                <div class="modal-title"><i class="ph-fill ph-target"></i> Nicho: <span id="nicheModalTitleName"></span></div>
+                <button type="button" class="close-modal" onclick="closeNicheModal()"><i class="ph ph-x"></i></button>
+            </div>
+            <div class="modal-body" style="padding: 0;">
+                <table class="data-table" style="border: none; box-shadow: none; border-radius: 0;">
+                    <thead>
+                        <tr>
+                            <th>Contato</th>
+                            <th>Negócio</th>
+                            <th>Telefone</th>
+                            <th>Status Atual</th>
+                        </tr>
+                    </thead>
+                    <tbody id="nicheDetailsTableBody"></tbody>
+                </table>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-secondary" onclick="closeNicheModal()">Fechar</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ====================================================================
+        // 1. CONFIGURAÇÃO DO FIREBASE
+        // ====================================================================
+        const firebaseConfig = {
+            apiKey: "AIzaSyByZgAWNh1GOBVTKXQV5zj6aMzkHhZavs4",
+            authDomain: "crm-prospeccao-dcb0e.firebaseapp.com",
+            projectId: "crm-prospeccao-dcb0e",
+            storageBucket: "crm-prospeccao-dcb0e.firebasestorage.app",
+            messagingSenderId: "611761879139",
+            appId: "1:611761879139:web:724c81bfd34f2faa2fa056"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        // ====================================================================
+        // 2. VARIÁVEIS GLOBAIS E UTILITÁRIOS
+        // ====================================================================
+        const PIPELINE_COLUMNS = [
+            { id: 'col-1', title: '1º Contato', icon: 'ph-phone-call', color: '#64748b' },
+            { id: 'col-2', title: '2º Contato', icon: 'ph-phone-outgoing', color: '#64748b' },
+            { id: 'col-3', title: '3º Contato', icon: 'ph-chats', color: '#64748b' },
+            { id: 'col-no', title: 'Sem Interesse', icon: 'ph-prohibit', color: '#ef4444' },
+            { id: 'col-test', title: 'Teste 10 Dias', icon: 'ph-hourglass-medium', color: '#f59e0b' },
+            { id: 'col-win', title: 'Assinou', icon: 'ph-handshake', color: '#10b981' },
+            { id: 'col-renew', title: 'Renovação', icon: 'ph-arrows-clockwise', color: '#3b82f6' },
+            { id: 'col-churn', title: 'Não Renovou', icon: 'ph-user-minus', color: '#8b5cf6' }
+        ];
+
+        const TERMINAL_STATUSES = ['col-no', 'col-win', 'col-renew', 'col-churn'];
+
+        let clients = []; 
+        let currentView = 'pipeline';
+        let draggedCardId = null;
+        let funnelChartInstance = null;
+        let revenueNicheChartInstance = null;
+        let activeNicheFilter = null; 
+        let currentClientNoteId = null; 
+
+        const getTodayString = () => new Date().toISOString().split('T')[0];
+        const formatCurrency = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val || 0);
+        const formatDate = (dateString) => dateString ? new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date(dateString + 'T12:00:00')) : '-';
+
+        function getNicheEmoji(niche) {
+            if (!niche) return '🎯';
+            const n = niche.toLowerCase();
+            if (n.includes('pizzaria') || n.includes('pizza')) return '🍕';
+            if (n.includes('hamburguer') || n.includes('burger') || n.includes('lanche')) return '🍔';
+            if (n.includes('restaurante') || n.includes('comida') || n.includes('alimentação')) return '🍽️';
+            if (n.includes('tecnologia') || n.includes('saas') || n.includes('software')) return '💻';
+            if (n.includes('contabilidade') || n.includes('financeiro') || n.includes('finanças')) return '📊';
+            if (n.includes('varejo') || n.includes('loja') || n.includes('roupa')) return '🛍️';
+            if (n.includes('indústria') || n.includes('fabrica') || n.includes('metalúrgica')) return '🏭';
+            if (n.includes('logística') || n.includes('transporte') || n.includes('frete')) return '🚚';
+            if (n.includes('saúde') || n.includes('medicina') || n.includes('clinica') || n.includes('médico')) return '🏥';
+            if (n.includes('educação') || n.includes('escola') || n.includes('curso')) return '📚';
+            if (n.includes('advocacia') || n.includes('direito') || n.includes('juridico')) return '⚖️';
+            if (n.includes('estética') || n.includes('beleza') || n.includes('salão')) return '✂️';
+            if (n.includes('imobiliária') || n.includes('imóveis')) return '🏠';
+            return '🎯';
+        }
+
+        // ====================================================================
+        // 3. INTEGRAÇÃO FIREBASE (LEITURA E ESCRITA)
+        // ====================================================================
+        function loadDataFromFirebase() {
+            db.collection("clientes").get().then((querySnapshot) => {
+                clients = [];
+                querySnapshot.forEach((doc) => {
+                    clients.push({ id: doc.id, ...doc.data() });
+                });
+                refreshCurrentView();
+            }).catch((error) => {
+                console.error("Erro ao buscar clientes:", error);
+            });
+        }
+
+        function handleFormSubmit(e) {
+            e.preventDefault();
+            const id = document.getElementById('clientId').value;
+            const newStatus = document.getElementById('clientStatus').value;
+            
+            const clientData = {
+                name: document.getElementById('clientName').value,
+                cpf: document.getElementById('clientCpf').value,
+                phone: document.getElementById('clientPhone').value,
+                email: document.getElementById('clientEmail').value,
+                business: document.getElementById('clientBusiness').value,
+                niche: document.getElementById('clientNiche').value,
+                date: document.getElementById('clientDate').value,
+                status: newStatus,
+                value: parseFloat(document.getElementById('clientValue').value) || 0,
+                renewal: parseFloat(document.getElementById('clientRenewal').value) || 0,
+                nextContact: document.getElementById('clientNextContact').value
+            };
+
+            const saveBtn = document.querySelector('button[type="submit"]');
+            saveBtn.innerHTML = "Salvando...";
+            saveBtn.disabled = true;
+
+            if(id) {
+                const index = clients.findIndex(c => c.id === id);
+                const oldStatus = clients[index].status;
+                
+                if(oldStatus !== newStatus) {
+                    clientData.statusDate = getTodayString();
+                }
+
+                db.collection("clientes").doc(id).update(clientData).then(() => {
+                    clients[index] = { ...clients[index], ...clientData };
+                    closeModal();
+                    refreshCurrentView();
+                }).catch(err => alert("Erro ao atualizar")).finally(() => {
+                    saveBtn.innerHTML = "Salvar Cliente";
+                    saveBtn.disabled = false;
+                });
+
+            } else {
+                clientData.statusDate = getTodayString();
+                clientData.renewalsCount = 0;
+                clientData.accumulatedRenewal = 0;
+                clientData.notes = [];
+
+                db.collection("clientes").add(clientData).then((docRef) => {
+                    clients.push({ id: docRef.id, ...clientData });
+                    closeModal();
+                    refreshCurrentView();
+                }).catch(err => alert("Erro ao salvar")).finally(() => {
+                    saveBtn.innerHTML = "Salvar Cliente";
+                    saveBtn.disabled = false;
+                });
+            }
+        }
+
+        function deleteClient(id) {
+            if(confirm('Excluir este cliente permanentemente?')) {
+                db.collection("clientes").doc(id).delete().then(() => {
+                    clients = clients.filter(c => c.id !== id);
+                    refreshCurrentView();
+                }).catch((error) => {
+                    console.error("Erro ao deletar:", error);
+                });
+            }
+        }
+
+        function addRenewalCycle(id) {
+            const index = clients.findIndex(c => c.id === id);
+            if (index > -1) {
+                const client = clients[index];
+                const valorRenovacao = client.renewal || 0;
+                
+                if(confirm(`Confirmar novo ciclo de renovação no valor de ${formatCurrency(valorRenovacao)} para ${client.name}?`)) {
+                    const newCount = (client.renewalsCount || 0) + 1;
+                    const newAccumulated = (client.accumulatedRenewal || 0) + valorRenovacao;
+
+                    db.collection("clientes").doc(id).update({
+                        renewalsCount: newCount,
+                        accumulatedRenewal: newAccumulated
+                    }).then(() => {
+                        client.renewalsCount = newCount;
+                        client.accumulatedRenewal = newAccumulated;
+                        refreshCurrentView();
+                    });
+                }
+            }
+        }
+
+        function saveNote() {
+            const input = document.getElementById('newNoteInput');
+            const text = input.value.trim();
+            if(!text) return;
+
+            const clientIndex = clients.findIndex(c => c.id === currentClientNoteId);
+            if(clientIndex === -1) return;
+
+            const newNotesArray = clients[clientIndex].notes ? [...clients[clientIndex].notes] : [];
+            newNotesArray.push({
+                date: getTodayString(),
+                text: text
+            });
+
+            db.collection("clientes").doc(currentClientNoteId).update({
+                notes: newNotesArray
+            }).then(() => {
+                clients[clientIndex].notes = newNotesArray;
+                input.value = '';
+                renderNotesList();
+            });
+        }
+
+        function drop(e) {
+            e.preventDefault(); 
+            const columnBody = e.target.closest('.column-body'); 
+            if (!columnBody) return; 
+            columnBody.classList.remove('drag-over'); 
+            
+            if (draggedCardId) { 
+                const index = clients.findIndex(c => c.id === draggedCardId); 
+                const newStatus = columnBody.id;
+
+                if (index > -1 && clients[index].status !== newStatus) { 
+                    const statusDate = getTodayString();
+                    
+                    db.collection("clientes").doc(draggedCardId).update({
+                        status: newStatus,
+                        statusDate: statusDate
+                    }).then(() => {
+                        clients[index].status = newStatus; 
+                        clients[index].statusDate = statusDate; 
+                        refreshCurrentView(); 
+                    });
+                } 
+            } 
+        }
+
+        // ====================================================================
+        // 4. LÓGICA DE UI E RENDERIZAÇÃO
+        // ====================================================================
+
+        function loadTheme() {
+            const savedTheme = localStorage.getItem('prospect_theme');
+            if (savedTheme === 'dark') {
+                document.body.classList.add('dark-mode');
+                document.getElementById('themeToggleBtn').innerHTML = '<i class="ph ph-sun"></i>';
+            }
+        }
+
+        function toggleTheme() {
+            document.body.classList.toggle('dark-mode');
+            const isDark = document.body.classList.contains('dark-mode');
+            document.getElementById('themeToggleBtn').innerHTML = isDark ? '<i class="ph ph-sun"></i>' : '<i class="ph ph-moon"></i>';
+            localStorage.setItem('prospect_theme', isDark ? 'dark' : 'light');
+            if (currentView === 'dashboard') renderDashboard(); 
+        }
+
+        function loadCustomizations() {
+            const savedLogo = localStorage.getItem('prospect_logo');
+            if(savedLogo) document.getElementById('sidebarLogo').src = savedLogo;
+            const savedTitle = localStorage.getItem('prospect_title');
+            if(savedTitle) document.getElementById('sidebarTitle').innerText = savedTitle;
+        }
+
+        function handleLogoUpload(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const base64 = e.target.result;
+                    document.getElementById('sidebarLogo').src = base64;
+                    localStorage.setItem('prospect_logo', base64);
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function saveSystemTitle() {
+            localStorage.setItem('prospect_title', document.getElementById('sidebarTitle').innerText);
+        }
+
+        function openWhatsApp(phone, name) {
+            if(!phone) {
+                alert('Número de telefone não cadastrado para este contato.');
+                return;
+            }
+            const cleanPhone = phone.replace(/\D/g, '');
+            const msg = encodeURIComponent(`Olá ${name}, tudo bem? `);
+            const finalPhone = cleanPhone.length <= 11 ? `55${cleanPhone}` : cleanPhone;
+            window.open(`https://wa.me/${finalPhone}?text=${msg}`, '_blank');
+        }
+
+        function openNotesModal(clientId) {
+            currentClientNoteId = clientId;
+            renderNotesList();
+            document.getElementById('notesModal').classList.add('active');
+            setTimeout(() => document.getElementById('newNoteInput').focus(), 100);
+        }
+
+        function closeNotesModal() {
+            document.getElementById('notesModal').classList.remove('active');
+            currentClientNoteId = null;
+        }
+
+        function renderNotesList() {
+            const client = clients.find(c => c.id === currentClientNoteId);
+            const container = document.getElementById('notesList');
+            
+            if(!client || !client.notes || client.notes.length === 0) {
+                container.innerHTML = `<div class="empty-state" style="padding: 20px;"><i class="ph ph-chat-teardrop-text"></i><p>Nenhum follow-up registrado.</p></div>`;
+                return;
+            }
+            const sortedNotes = [...client.notes].reverse();
+            container.innerHTML = sortedNotes.map(n => `
+                <div class="note-item">
+                    <div class="note-date"><i class="ph-bold ph-calendar-blank"></i> ${formatDate(n.date)}</div>
+                    <div class="note-text">${n.text}</div>
+                </div>
+            `).join('');
+        }
+
+        function renderNicheFilterChips() {
+            const container = document.getElementById('kanbanFilters');
+            if (currentView !== 'pipeline') {
+                container.style.display = 'none';
+                return;
+            }
+            const niches = [...new Set(clients.map(c => c.niche).filter(Boolean))].sort();
+            if(niches.length === 0) {
+                container.style.display = 'none';
+                return;
+            }
+            container.style.display = 'flex';
+            let html = `<button class="filter-chip ${!activeNicheFilter ? 'active' : ''}" onclick="setNicheFilter(null)"><i class="ph-bold ph-funnel"></i> Todos</button>`;
+            niches.forEach(n => {
+                html += `<button class="filter-chip ${activeNicheFilter === n ? 'active' : ''}" onclick="setNicheFilter('${n}')">${getNicheEmoji(n)} ${n}</button>`;
+            });
+            container.innerHTML = html;
+        }
+
+        function setNicheFilter(niche) {
+            activeNicheFilter = niche;
+            renderNicheFilterChips(); 
+            refreshCurrentView(); 
+        }
+
+        function getFilteredClients() {
+            const search = document.getElementById('searchInput').value.toLowerCase();
+            const start = document.getElementById('filterStart').value;
+            const end = document.getElementById('filterEnd').value;
+
+            return clients.filter(c => {
+                const matchSearch = c.name.toLowerCase().includes(search) || (c.business && c.business.toLowerCase().includes(search));
+                let matchDate = true;
+                if (start && c.date < start) matchDate = false;
+                if (end && c.date > end) matchDate = false;
+                
+                let matchNiche = true;
+                if (activeNicheFilter && c.niche !== activeNicheFilter) matchNiche = false;
+
+                return matchSearch && matchDate && matchNiche;
+            });
+        }
+
+        function clearDateFilter() {
+            document.getElementById('filterStart').value = '';
+            document.getElementById('filterEnd').value = '';
+            refreshCurrentView();
+        }
+
+        function toggleSidebar() {
+            const sb = document.getElementById('sidebar');
+            const icon = document.getElementById('toggleIcon');
+            sb.classList.toggle('collapsed');
+            icon.classList.replace(sb.classList.contains('collapsed') ? 'ph-caret-left' : 'ph-caret-right', sb.classList.contains('collapsed') ? 'ph-caret-right' : 'ph-caret-left');
+        }
+
+        function switchView(view) {
+            currentView = view;
+            document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
+            document.getElementById(`view-${view}`).classList.add('active');
+            
+            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+            document.getElementById(`nav-${view}`).classList.add('active');
+            
+            const btnNewContact = document.getElementById('btn-new-contact');
+            const btnExportExcel = document.getElementById('btn-export-excel');
+            const btnPdf = document.getElementById('btn-export-pdf');
+            
+            if (view === 'pipeline') {
+                btnNewContact.style.display = 'none';
+                btnExportExcel.style.display = 'none';
+                btnPdf.style.display = 'none';
+                renderNicheFilterChips();
+            } else if (view === 'clients') {
+                btnNewContact.style.display = 'flex'; 
+                btnExportExcel.style.display = 'flex';
+                btnPdf.style.display = 'none';
+                document.getElementById('kanbanFilters').style.display = 'none';
+            } else if (view === 'dashboard') {
+                btnNewContact.style.display = 'none';
+                btnExportExcel.style.display = 'none';
+                btnPdf.style.display = 'flex'; 
+                document.getElementById('kanbanFilters').style.display = 'none';
+            } else {
+                btnNewContact.style.display = 'none';
+                btnExportExcel.style.display = 'none';
+                btnPdf.style.display = 'none';
+                document.getElementById('kanbanFilters').style.display = 'none';
+            }
+            
+            refreshCurrentView();
+        }
+
+        function refreshCurrentView() {
+            if (currentView === 'pipeline') renderPipeline();
+            else if (currentView === 'clients') renderClientsTable();
+            else if (currentView === 'niches') renderNichesGrid();
+            else if (currentView === 'dashboard') renderDashboard();
+        }
+
+        // ====================================================================
+        // GERAÇÃO DE PDF OTIMIZADA PARA A4 PAISAGEM (100% VISÍVEL E NÍTIDO)
+        // ====================================================================
+        function exportDashboardPDF() {
+            const element = document.getElementById('view-dashboard');
+            const btnPdf = document.getElementById('btn-export-pdf');
+            
+            // Forçamos o painel a assumir uma proporção fixa exata equivalente a uma página A4 Paisagem
+            const originalCss = element.style.cssText;
+            element.style.cssText = "display: flex !important; flex-direction: column !important; width: 1122px !important; height: 793px !important; overflow: hidden !important; background: var(--bg-base) !important; padding: 20px !important;";
+
+            btnPdf.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Gerando...';
+            btnPdf.disabled = true;
+
+            // Timeout de 500ms essencial: Dá tempo do Chart.js redesenhar os gráficos na nova proporção
+            setTimeout(() => {
+                const opt = {
+                    margin:       [5, 5, 5, 5],
+                    filename:     `Dashboard_CRM_${getTodayString()}.pdf`,
+                    image:        { type: 'jpeg', quality: 1.0 },
+                    html2canvas:  { scale: 2, useCORS: true }, // Scale 2 é ótimo para A4
+                    jsPDF:        { unit: 'mm', format: 'a4', orientation: 'landscape' } 
+                };
+
+                html2pdf().set(opt).from(element).save().then(() => {
+                    // Restaura a visualização padrão na tela do usuário
+                    element.style.cssText = originalCss;
+                    btnPdf.innerHTML = '<i class="ph-bold ph-file-pdf"></i> Baixar PDF';
+                    btnPdf.disabled = false;
+                });
+            }, 500); 
+        }
+
+        function renderPipeline() {
+            const board = document.getElementById('kanbanBoard');
+            board.innerHTML = '';
+            const activeData = getFilteredClients();
+
+            PIPELINE_COLUMNS.forEach(col => {
+                const columnData = activeData.filter(c => c.status === col.id);
+                const colEl = document.createElement('div');
+                colEl.className = 'kanban-column';
+                colEl.dataset.id = col.id;
+                
+                colEl.innerHTML = `
+                    <div class="column-header">
+                        <div class="column-title"><i class="ph ${col.icon}" style="color: ${col.color}"></i> ${col.title}</div>
+                        <span class="column-counter">${columnData.length}</span>
+                    </div>
+                    <div class="column-body" id="${col.id}" ondragover="allowDrop(event)" ondragleave="dragLeave(event)" ondrop="drop(event)">
+                        ${columnData.map(c => createCardHTML(c)).join('')}
+                    </div>
+                `;
+                board.appendChild(colEl);
+            });
+
+            document.querySelectorAll('.kanban-card').forEach(card => {
+                card.addEventListener('dragstart', dragStart);
+                card.addEventListener('dragend', dragEnd);
+            });
+
+            updateMetrics(activeData);
+            renderNicheFilterChips();
+        }
+
+        function createCardHTML(client) {
+            const todayStr = getTodayString(); 
+            const currentStatusDateStr = client.statusDate || client.date;
+            
+            const dToday = new Date(todayStr + 'T00:00:00');
+            const dStatus = new Date(currentStatusDateStr + 'T00:00:00');
+            
+            const diffTime = dToday - dStatus;
+            const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+            
+            let cardClassList = 'kanban-card';
+            let nextActionBadgeHtml = '';
+
+            if (client.nextContact && !TERMINAL_STATUSES.includes(client.status)) {
+                if (client.nextContact === todayStr) {
+                    cardClassList += ' card-today';
+                    nextActionBadgeHtml = `<span class="next-action-badge today" title="Contatar Hoje"><i class="ph-fill ph-bell-ringing"></i> Ligar Hoje</span>`;
+                } else if (client.nextContact < todayStr) {
+                    cardClassList += ' card-overdue';
+                    nextActionBadgeHtml = `<span class="next-action-badge" style="color:var(--danger); border:1px solid var(--danger);" title="Contato Atrasado"><i class="ph-fill ph-warning"></i> Atrasado</span>`;
+                } else {
+                    nextActionBadgeHtml = `<span class="next-action-badge" title="Agendado"><i class="ph ph-calendar"></i> ${formatDate(client.nextContact)}</span>`;
+                }
+            } else if (diffDays > 3 && !TERMINAL_STATUSES.includes(client.status)) {
+                cardClassList += ' card-overdue';
+                nextActionBadgeHtml = `<span class="next-action-badge" style="color:var(--danger);"><i class="ph-fill ph-clock"></i> Parado há ${diffDays}d</span>`;
+            }
+
+            const canRenew = client.status === 'col-win' || client.status === 'col-renew';
+            const cyclesHtml = client.renewalsCount > 0 ? `<span class="tag" style="background:var(--success-bg); color:var(--success); border:none;"><i class="ph-bold ph-arrows-clockwise"></i> ${client.renewalsCount} Ciclo(s)</span>` : '';
+            const notesCount = client.notes ? client.notes.length : 0;
+
+            return `
+                <div class="${cardClassList}" draggable="true" id="${client.id}">
+                    <div class="card-actions">
+                        <button class="card-btn whatsapp" onclick="openWhatsApp('${client.phone || ''}', '${client.name}')" title="WhatsApp Rápido"><i class="ph-fill ph-whatsapp-logo"></i></button>
+                        <button class="card-btn notes" onclick="openNotesModal('${client.id}')" title="Histórico de Notas (${notesCount})"><i class="ph-fill ph-notebook"></i></button>
+                        
+                        ${canRenew ? `<button class="card-btn renew" onclick="addRenewalCycle('${client.id}')" title="Registrar Nova Renovação"><i class="ph-bold ph-arrows-clockwise"></i></button>` : ''}
+                        <button class="card-btn" onclick="editClient('${client.id}')" title="Editar"><i class="ph ph-pencil-simple"></i></button>
+                    </div>
+                    
+                    <div class="card-header">
+                        <div class="client-info">
+                            <div class="client-name" title="${client.name}">${client.name}</div>
+                            <div class="client-business" title="${client.business}"><i class="ph ph-briefcase"></i> ${client.business}</div>
+                        </div>
+                    </div>
+                    
+                    <div class="card-tags">
+                        <span class="tag tag-niche">${getNicheEmoji(client.niche)} ${client.niche}</span>
+                        ${cyclesHtml}
+                    </div>
+                    
+                    <div class="card-values">
+                        <div class="card-val-row"><span class="val-label">Assinatura:</span> <span class="val-amount">${formatCurrency(client.value)}</span></div>
+                    </div>
+                    
+                    <div class="card-footer">
+                        <div class="date-infos">
+                            <span title="Na etapa atual desde ${formatDate(currentStatusDateStr)}"><i class="ph ph-clock-counter-clockwise"></i> Etapa: ${formatDate(currentStatusDateStr)}</span>
+                        </div>
+                        ${nextActionBadgeHtml}
+                    </div>
+                </div>
+            `;
+        }
+
+        function updateMetrics(data) {
+            const ativosList = data.filter(c => c.status === 'col-win' || c.status === 'col-renew');
+            const testandoList = data.filter(c => c.status === 'col-test');
+            
+            const totalFunil = data.length;
+            const ativos = ativosList.length;
+            
+            const valorPago = ativosList.reduce((sum, c) => sum + Number(c.value || 0), 0);
+            const renovacaoAcumulada = data.reduce((sum, c) => sum + Number(c.accumulatedRenewal || 0), 0);
+            const taxaConv = totalFunil > 0 ? ((ativos / totalFunil) * 100).toFixed(1) : 0;
+
+            document.getElementById('kpi-valor-pago').innerText = formatCurrency(valorPago);
+            document.getElementById('kpi-conversao').innerText = `${taxaConv}%`;
+            document.getElementById('kpi-ativos').innerText = ativos;
+            
+            // ====================================================================
+            // CÁLCULO DE PREVISÃO ATUALIZADO (VALOR DE 47,90)
+            // ====================================================================
+            document.getElementById('kpi-testando').innerText = testandoList.length;
+            const previsaoReceita = testandoList.length * 47.90;
+            document.getElementById('kpi-previsao').innerText = `Previsão: ${formatCurrency(previsaoReceita)}`;
+            
+            document.getElementById('kpi-renovacao').innerText = formatCurrency(renovacaoAcumulada);
+        }
+
+        function dragStart(e) { draggedCardId = this.id; this.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; }
+        function dragEnd() { this.classList.remove('dragging'); document.querySelectorAll('.column-body').forEach(col => col.classList.remove('drag-over')); }
+        function allowDrop(e) { e.preventDefault(); const col = e.target.closest('.column-body'); if(col) col.classList.add('drag-over'); }
+        function dragLeave(e) { const col = e.target.closest('.column-body'); if(col) col.classList.remove('drag-over'); }
+
+        function renderClientsTable() {
+            const tbody = document.getElementById('clientsTableBody');
+            tbody.innerHTML = '';
+            const data = getFilteredClients();
+
+            if(data.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:30px; color:var(--text-muted);">Nenhum contato encontrado.</td></tr>`;
+                return;
+            }
+
+            data.forEach(c => {
+                const statusObj = PIPELINE_COLUMNS.find(col => col.id === c.status) || PIPELINE_COLUMNS[0];
+                
+                tbody.innerHTML += `
+                    <tr>
+                        <td>
+                            <div style="font-weight: 600;">${c.name}</div>
+                            <div style="font-size: 0.75rem; color: var(--text-muted);">${c.email || '-'}</div>
+                        </td>
+                        <td>${c.business}</td>
+                        <td><span class="tag tag-niche">${getNicheEmoji(c.niche)} ${c.niche}</span></td>
+                        <td>${c.phone || '-'}</td>
+                        <td><span class="status-badge"><i class="ph ${statusObj.icon}" style="color: ${statusObj.color}"></i> ${statusObj.title}</span></td>
+                        <td>
+                            <div class="table-actions-cell">
+                                <button class="card-btn whatsapp" onclick="openWhatsApp('${c.phone || ''}', '${c.name}')"><i class="ph-fill ph-whatsapp-logo"></i></button>
+                                <button class="card-btn" onclick="editClient('${c.id}')"><i class="ph ph-pencil-simple"></i></button>
+                                <button class="card-btn delete" onclick="deleteClient('${c.id}')"><i class="ph ph-trash"></i></button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        function exportToExcel() {
+            if (clients.length === 0) {
+                alert("Não há dados para exportar.");
+                return;
+            }
+            let csvContent = "Nome;CPF;E-mail;Telefone;Negócio;Nicho;Data de Cadastro;Data no Status Atual;Status;Valor Assinatura;Renovação Mensal;Ciclos de Renovação;Total Renovado Acumulado;Próximo Contato\n";
+            clients.forEach(c => {
+                const statusObj = PIPELINE_COLUMNS.find(col => col.id === c.status) || { title: 'Desconhecido' };
+                const safe = (str) => (str || '').toString().replace(/;/g, ',');
+                const row = `${safe(c.name)};${safe(c.cpf)};${safe(c.email)};${safe(c.phone)};${safe(c.business)};${safe(c.niche)};${c.date};${c.statusDate || c.date};${statusObj.title};${c.value || 0};${c.renewal || 0};${c.renewalsCount || 0};${c.accumulatedRenewal || 0};${c.nextContact || '-'}`;
+                csvContent += row + "\n";
+            });
+            const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            const url = URL.createObjectURL(blob);
+            link.setAttribute("href", url);
+            link.setAttribute("download", "clientes_prospeccao.csv");
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        function renderNichesGrid() {
+            const grid = document.getElementById('nichesGrid');
+            grid.innerHTML = '';
+            const activeData = getFilteredClients();
+            if(activeData.length === 0) {
+                grid.innerHTML = `<div class="empty-state" style="grid-column: 1 / -1;"><i class="ph ph-target"></i><p>Cadastre clientes para ver a divisão por nichos.</p></div>`;
+                return;
+            }
+            const nichesCount = activeData.reduce((acc, client) => {
+                const niche = client.niche || 'Sem Nicho';
+                if (!acc[niche]) acc[niche] = [];
+                acc[niche].push(client);
+                return acc;
+            }, {});
+
+            Object.keys(nichesCount).forEach(nicheName => {
+                const list = nichesCount[nicheName];
+                const card = document.createElement('div');
+                card.className = 'niche-card';
+                card.onclick = () => openNicheDetails(nicheName, list);
+                
+                card.innerHTML = `
+                    <div class="niche-icon">${getNicheEmoji(nicheName)}</div>
+                    <div class="niche-title">${nicheName}</div>
+                    <div class="niche-count">${list.length} Contato(s)</div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        function openNicheDetails(nicheName, clientsList) {
+            document.getElementById('nicheModalTitleName').innerHTML = `${getNicheEmoji(nicheName)} ${nicheName}`;
+            const tbody = document.getElementById('nicheDetailsTableBody');
+            tbody.innerHTML = '';
+            clientsList.forEach(c => {
+                const statusObj = PIPELINE_COLUMNS.find(col => col.id === c.status) || PIPELINE_COLUMNS[0];
+                tbody.innerHTML += `
+                    <tr>
+                        <td style="font-weight:500;">${c.name}</td>
+                        <td>${c.business}</td>
+                        <td>${c.phone || '-'}</td>
+                        <td><span class="status-badge"><i class="ph ${statusObj.icon}" style="color: ${statusObj.color}"></i> ${statusObj.title}</span></td>
+                    </tr>
+                `;
+            });
+            document.getElementById('nicheDetailsModal').classList.add('active');
+        }
+
+        function closeNicheModal() { document.getElementById('nicheDetailsModal').classList.remove('active'); }
+
+        function renderDashboard() {
+            const data = getFilteredClients();
+            const ativosList = data.filter(c => c.status === 'col-win' || c.status === 'col-renew');
+            const churnList = data.filter(c => c.status === 'col-churn');
+            
+            const mrr = ativosList.reduce((sum, c) => sum + Number(c.value || 0), 0);
+            const receitaInicialTotal = ativosList.concat(churnList).reduce((sum, c) => sum + Number(c.value || 0), 0);
+            const renovacaoTotal = data.reduce((sum, c) => sum + Number(c.accumulatedRenewal || 0), 0);
+            const receitaGlobal = receitaInicialTotal + renovacaoTotal;
+            
+            const totalCompradores = ativosList.length + churnList.length;
+            const ltvMedio = totalCompradores > 0 ? receitaGlobal / totalCompradores : 0;
+            
+            const taxaChurn = totalCompradores > 0 ? (churnList.length / totalCompradores) * 100 : 0;
+            const totalCiclos = data.reduce((sum, c) => sum + Number(c.renewalsCount || 0), 0);
+
+            document.getElementById('dash-mrr').innerText = formatCurrency(mrr);
+            document.getElementById('dash-ltv').innerText = formatCurrency(ltvMedio);
+            document.getElementById('dash-churn').innerText = `${taxaChurn.toFixed(1)}%`;
+            document.getElementById('dash-ciclos').innerText = totalCiclos;
+
+            const statusCounts = {};
+            PIPELINE_COLUMNS.forEach(col => statusCounts[col.title] = 0);
+            data.forEach(c => {
+                const col = PIPELINE_COLUMNS.find(col => col.id === c.status);
+                if(col) statusCounts[col.title]++;
+            });
+
+            const ctxFunnel = document.getElementById('funnelChart').getContext('2d');
+            if(funnelChartInstance) funnelChartInstance.destroy();
+            
+            const isDark = document.body.classList.contains('dark-mode');
+            const textColor = isDark ? '#cbd5e1' : '#475569';
+            const gridColor = isDark ? '#334155' : '#e2e8f0';
+
+            funnelChartInstance = new Chart(ctxFunnel, {
+                type: 'bar',
+                data: { 
+                    labels: Object.keys(statusCounts), 
+                    datasets: [{ 
+                        label: 'Contatos', 
+                        data: Object.values(statusCounts), 
+                        backgroundColor: PIPELINE_COLUMNS.map(c => c.color + 'CC'),
+                        borderColor: PIPELINE_COLUMNS.map(c => c.color),
+                        borderWidth: 1, borderRadius: 6
+                    }] 
+                },
+                options: { 
+                    responsive: true, maintainAspectRatio: false, 
+                    plugins: { legend: { display: false } }, 
+                    scales: { 
+                        y: { beginAtZero: true, ticks: { stepSize: 1, color: textColor }, grid: { color: gridColor } },
+                        x: { ticks: { color: textColor }, grid: { display: false } }
+                    } 
+                }
+            });
+
+            const nicheRevenue = data.reduce((acc, client) => {
+                if(client.status === 'col-win' || client.status === 'col-renew' || client.status === 'col-churn') {
+                    const niche = client.niche || 'Sem Nicho';
+                    const clientLTV = Number(client.value || 0) + Number(client.accumulatedRenewal || 0);
+                    if (!acc[niche]) acc[niche] = 0;
+                    acc[niche] += clientLTV;
+                }
+                return acc;
+            }, {});
+
+            const ctxNiche = document.getElementById('revenueNicheChart').getContext('2d');
+            if(revenueNicheChartInstance) revenueNicheChartInstance.destroy();
+
+            const pallete = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444', '#0ea5e9', '#ec4899'];
+
+            revenueNicheChartInstance = new Chart(ctxNiche, {
+                type: 'doughnut',
+                data: { 
+                    labels: Object.keys(nicheRevenue), 
+                    datasets: [{ 
+                        data: Object.values(nicheRevenue), 
+                        backgroundColor: pallete, 
+                        borderWidth: 2, borderColor: isDark ? '#1e293b' : '#ffffff'
+                    }] 
+                },
+                options: { 
+                    responsive: true, maintainAspectRatio: false, cutout: '65%',
+                    plugins: { legend: { position: 'right', labels: { color: textColor, padding: 15 } } } 
+                }
+            });
+        }
+
+        function populateStatusSelect() {
+            const select = document.getElementById('clientStatus');
+            select.innerHTML = '';
+            PIPELINE_COLUMNS.forEach(col => {
+                select.innerHTML += `<option value="${col.id}">${col.title}</option>`;
+            });
+        }
+
+        const setVal = (id, val) => document.getElementById(id).value = val;
+
+        function openModal() {
+            document.getElementById('clientForm').reset();
+            setVal('clientId', '');
+            setVal('clientDate', getTodayString());
+            document.getElementById('modalTitleText').innerText = 'Cadastrar Cliente';
+            document.getElementById('clientModal').classList.add('active');
+        }
+
+        function closeModal() { document.getElementById('clientModal').classList.remove('active'); }
+
+        function editClient(id) {
+            const c = clients.find(x => x.id === id);
+            if(!c) return;
+            
+            setVal('clientId', c.id);
+            setVal('clientName', c.name);
+            setVal('clientCpf', c.cpf || '');
+            setVal('clientEmail', c.email || '');
+            setVal('clientPhone', c.phone || '');
+            setVal('clientBusiness', c.business);
+            setVal('clientNiche', c.niche);
+            setVal('clientDate', c.date);
+            setVal('clientStatus', c.status);
+            setVal('clientValue', c.value || '');
+            setVal('clientRenewal', c.renewal || '');
+            setVal('clientNextContact', c.nextContact || '');
+            
+            document.getElementById('modalTitleText').innerText = 'Editar Cliente';
+            document.getElementById('clientModal').classList.add('active');
+        }
+
+        // --- INICIALIZAÇÃO ---
+        window.onload = () => {
+            loadTheme();
+            loadCustomizations();
+            populateStatusSelect();
+            
+            loadDataFromFirebase(); 
+            
+            switchView('pipeline');
+        };
+    </script>
+</body>
+</html>
