@@ -7,7 +7,7 @@
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght=300;400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
@@ -125,6 +125,9 @@
         .btn-excel { background: #10b981; color: white; border: none; padding: 10px 20px; border-radius: var(--radius-md); font-weight: 600; cursor: pointer; display: none; align-items: center; gap: 8px; transition: var(--transition); box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2); }
         .btn-excel:hover { transform: translateY(-2px); filter: brightness(1.1); }
 
+        .btn-import { background: var(--neutral); color: white; border: none; padding: 10px 20px; border-radius: var(--radius-md); font-weight: 600; cursor: pointer; display: none; align-items: center; gap: 8px; transition: var(--transition); box-shadow: 0 4px 12px rgba(139, 92, 246, 0.2); }
+        .btn-import:hover { transform: translateY(-2px); filter: brightness(1.1); }
+
         .btn-pdf { background: #ef4444; color: white; border: none; padding: 10px 20px; border-radius: var(--radius-md); font-weight: 600; cursor: pointer; display: none; align-items: center; gap: 8px; transition: var(--transition); box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2); }
         .btn-pdf:hover { transform: translateY(-2px); filter: brightness(1.1); }
 
@@ -224,16 +227,14 @@
         .niche-title { font-weight: 600; font-size: 1.1rem; color: var(--text-primary); }
         .niche-count { background: var(--bg-base); color: var(--text-secondary); padding: 4px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: 500; border: 1px solid var(--border-color); }
 
-        /* ================= MODALS (CORRIGIDOS) ================= */
+        /* ================= MODALS ================= */
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-color: rgba(15, 23, 42, 0.7); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); display: flex; justify-content: center; align-items: center; z-index: 1000; opacity: 0; pointer-events: none; transition: var(--transition); padding: 20px; }
         .modal-overlay.active { opacity: 1; pointer-events: auto; }
         
-        /* Box do Modal */
         .modal-content { background-color: var(--bg-surface); border: 1px solid var(--border-color); border-radius: var(--radius-lg); width: 100%; max-width: 650px; box-shadow: var(--shadow-lg), 0 0 20px var(--accent-glow); transform: translateY(20px) scale(0.95); transition: var(--transition); color: var(--text-primary); display: flex; flex-direction: column; max-height: 100%; overflow: hidden; }
         .modal-content.wide { max-width: 800px; }
         .modal-overlay.active .modal-content { transform: translateY(0) scale(1); }
         
-        /* Flexbox do Form para garantir o scroll interno */
         .modal-content form { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; overflow: hidden; }
         
         .modal-header { padding: 20px 24px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.02); border-radius: var(--radius-lg) var(--radius-lg) 0 0; flex-shrink: 0; }
@@ -241,7 +242,6 @@
         .close-modal { background: transparent; border: none; color: var(--text-secondary); cursor: pointer; font-size: 1.5rem; transition: var(--transition); }
         .close-modal:hover { color: var(--danger); transform: rotate(90deg); }
         
-        /* Corpo Rola, Topo e Base Ficam Fixos */
         .modal-body { padding: 20px 24px; overflow-y: auto; flex: 1 1 auto; min-height: 0; }
         
         .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 16px; }
@@ -313,6 +313,11 @@
 
                 <button class="btn-excel" id="btn-export-excel" onclick="exportToExcel()">
                     <i class="ph-bold ph-file-csv"></i> Exportar Excel
+                </button>
+                
+                <input type="file" id="csvUpload" style="display:none" accept=".csv" onchange="handleCSVImport(event)">
+                <button class="btn-import" id="btn-import-csv" onclick="document.getElementById('csvUpload').click()">
+                    <i class="ph-bold ph-upload-simple"></i> Importar CSV
                 </button>
                 
                 <button class="btn-primary" id="btn-new-contact" onclick="openModal()">
@@ -903,26 +908,31 @@
             const btnNewContact = document.getElementById('btn-new-contact');
             const btnExportExcel = document.getElementById('btn-export-excel');
             const btnPdf = document.getElementById('btn-export-pdf');
+            const btnImportCsv = document.getElementById('btn-import-csv');
             
             if (view === 'pipeline') {
                 btnNewContact.style.display = 'none';
                 btnExportExcel.style.display = 'none';
                 btnPdf.style.display = 'none';
+                btnImportCsv.style.display = 'none';
                 renderNicheFilterChips();
             } else if (view === 'clients') {
                 btnNewContact.style.display = 'flex'; 
                 btnExportExcel.style.display = 'flex';
                 btnPdf.style.display = 'none';
+                btnImportCsv.style.display = 'flex';
                 document.getElementById('kanbanFilters').style.display = 'none';
             } else if (view === 'dashboard') {
                 btnNewContact.style.display = 'none';
                 btnExportExcel.style.display = 'none';
                 btnPdf.style.display = 'flex'; 
+                btnImportCsv.style.display = 'none';
                 document.getElementById('kanbanFilters').style.display = 'none';
             } else {
                 btnNewContact.style.display = 'none';
                 btnExportExcel.style.display = 'none';
                 btnPdf.style.display = 'none';
+                btnImportCsv.style.display = 'none';
                 document.getElementById('kanbanFilters').style.display = 'none';
             }
             
@@ -937,31 +947,28 @@
         }
 
         // ====================================================================
-        // GERAÇÃO DE PDF OTIMIZADA PARA A4 PAISAGEM (100% VISÍVEL E NÍTIDO)
+        // GERAÇÃO DE PDF OTIMIZADA PARA A4 PAISAGEM
         // ====================================================================
         function exportDashboardPDF() {
             const element = document.getElementById('view-dashboard');
             const btnPdf = document.getElementById('btn-export-pdf');
             
-            // Forçamos o painel a assumir uma proporção fixa exata equivalente a uma página A4 Paisagem
             const originalCss = element.style.cssText;
             element.style.cssText = "display: flex !important; flex-direction: column !important; width: 1122px !important; height: 793px !important; overflow: hidden !important; background: var(--bg-base) !important; padding: 20px !important;";
 
             btnPdf.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Gerando...';
             btnPdf.disabled = true;
 
-            // Timeout de 500ms essencial: Dá tempo do Chart.js redesenhar os gráficos na nova proporção
             setTimeout(() => {
                 const opt = {
                     margin:       [5, 5, 5, 5],
                     filename:     `Dashboard_CRM_${getTodayString()}.pdf`,
                     image:        { type: 'jpeg', quality: 1.0 },
-                    html2canvas:  { scale: 2, useCORS: true }, // Scale 2 é ótimo para A4
+                    html2canvas:  { scale: 2, useCORS: true },
                     jsPDF:        { unit: 'mm', format: 'a4', orientation: 'landscape' } 
                 };
 
                 html2pdf().set(opt).from(element).save().then(() => {
-                    // Restaura a visualização padrão na tela do usuário
                     element.style.cssText = originalCss;
                     btnPdf.innerHTML = '<i class="ph-bold ph-file-pdf"></i> Baixar PDF';
                     btnPdf.disabled = false;
@@ -1084,9 +1091,6 @@
             document.getElementById('kpi-conversao').innerText = `${taxaConv}%`;
             document.getElementById('kpi-ativos').innerText = ativos;
             
-            // ====================================================================
-            // CÁLCULO DE PREVISÃO ATUALIZADO (VALOR DE 47,90)
-            // ====================================================================
             document.getElementById('kpi-testando').innerText = testandoList.length;
             const previsaoReceita = testandoList.length * 47.90;
             document.getElementById('kpi-previsao').innerText = `Previsão: ${formatCurrency(previsaoReceita)}`;
@@ -1118,7 +1122,7 @@
                             <div style="font-weight: 600;">${c.name}</div>
                             <div style="font-size: 0.75rem; color: var(--text-muted);">${c.email || '-'}</div>
                         </td>
-                        <td>${c.business}</td>
+                        <td>${c.business || '-'}</td>
                         <td><span class="tag tag-niche">${getNicheEmoji(c.niche)} ${c.niche}</span></td>
                         <td>${c.phone || '-'}</td>
                         <td><span class="status-badge"><i class="ph ${statusObj.icon}" style="color: ${statusObj.color}"></i> ${statusObj.title}</span></td>
@@ -1155,6 +1159,91 @@
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
+        }
+
+        // ====================================================================
+        // IMPORTAÇÃO DE PLANILHA (CSV)
+        // ====================================================================
+        function handleCSVImport(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                const text = e.target.result;
+                const delimiter = text.includes(';') ? ';' : ','; 
+                const rows = text.split('\n').map(row => row.trim()).filter(row => row);
+
+                if (rows.length === 0) {
+                    alert("A planilha está vazia.");
+                    return;
+                }
+
+                const header = rows[0].toLowerCase();
+                const startIdx = (header.includes('nome') || header.includes('contato') || header.includes('responsável')) ? 1 : 0;
+
+                const newClients = [];
+                const batch = db.batch(); 
+                const btnImport = document.getElementById('btn-import-csv');
+                
+                btnImport.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Importando...';
+                btnImport.disabled = true;
+
+                for (let i = startIdx; i < rows.length; i++) {
+                    const columns = rows[i].split(delimiter);
+                    
+                    if (columns.length >= 3) {
+                        const name = columns[0].trim();
+                        const phone = columns[1].trim();
+                        const niche = columns[2].trim();
+
+                        if (!name) continue; 
+
+                        const newClientRef = db.collection("clientes").doc();
+                        
+                        const clientData = {
+                            name: name,
+                            phone: phone,
+                            niche: niche,
+                            business: '', 
+                            cpf: '',
+                            email: '',
+                            date: getTodayString(),
+                            status: 'col-1', 
+                            statusDate: getTodayString(),
+                            value: 0,
+                            renewal: 0,
+                            nextContact: '',
+                            renewalsCount: 0,
+                            accumulatedRenewal: 0,
+                            notes: []
+                        };
+
+                        batch.set(newClientRef, clientData);
+                        newClients.push({ id: newClientRef.id, ...clientData });
+                    }
+                }
+
+                if (newClients.length > 0) {
+                    try {
+                        await batch.commit(); 
+                        clients.push(...newClients); 
+                        refreshCurrentView();
+                        alert(`${newClients.length} contatos importados com sucesso para a etapa "1º Contato"!`);
+                    } catch (error) {
+                        console.error("Erro na importação: ", error);
+                        alert("Ocorreu um erro ao salvar os contatos no banco de dados.");
+                    }
+                } else {
+                    alert("Nenhum registro válido encontrado. Certifique-se de preencher as colunas Corretamente.");
+                }
+
+                event.target.value = '';
+                btnImport.innerHTML = '<i class="ph-bold ph-upload-simple"></i> Importar CSV';
+                btnImport.disabled = false;
+            };
+            
+            reader.readAsText(file, 'UTF-8');
         }
 
         function renderNichesGrid() {
@@ -1196,7 +1285,7 @@
                 tbody.innerHTML += `
                     <tr>
                         <td style="font-weight:500;">${c.name}</td>
-                        <td>${c.business}</td>
+                        <td>${c.business || '-'}</td>
                         <td>${c.phone || '-'}</td>
                         <td><span class="status-badge"><i class="ph ${statusObj.icon}" style="color: ${statusObj.color}"></i> ${statusObj.title}</span></td>
                     </tr>
@@ -1325,7 +1414,7 @@
             setVal('clientCpf', c.cpf || '');
             setVal('clientEmail', c.email || '');
             setVal('clientPhone', c.phone || '');
-            setVal('clientBusiness', c.business);
+            setVal('clientBusiness', c.business || '');
             setVal('clientNiche', c.niche);
             setVal('clientDate', c.date);
             setVal('clientStatus', c.status);
